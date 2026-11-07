@@ -130,11 +130,9 @@
         <h2 id="agents-h">ROSTER</h2>
         <span class="panel-meta" id="agents-meta">standby</span>
       </div>
-      <div class="panel-bd" id="roster">
-        <div class="empty-hint">
-          <p class="empty-title">NO AGENTS ON DECK</p>
-          <p>Send <code>agent_start</code> to put an operator on the board.</p>
-        </div>
+      <div class="panel-bd agents-bd">
+        <div id="deck" aria-label="live mascot deck"></div>
+        <div id="roster"></div>
       </div>
     </section>
   </main>
@@ -182,5 +180,22 @@ node cli.js edit refactorer src/utils.js</code></pre>
 
 </div>
 <script src="/app.js" type="module"></script>
+<script type="module">
+  // warm mascots as soon as possible; app.js will sync agents into it
+  window.__mcDeckReady = new Promise((resolve) => {
+    import('/mascots.js').then(({ MascotStage }) => {
+      const el = document.getElementById('deck')
+      if (!el) return resolve(null)
+      try {
+        window.__mcStage = new MascotStage(el)
+        resolve(window.__mcStage)
+      } catch (err) {
+        console.warn('WebGL unavailable, falling back to initials', err)
+        el.classList.add('deck-fallback')
+        resolve(null)
+      }
+    }).catch(() => resolve(null))
+  })
+</script>
 </body>
 </html>

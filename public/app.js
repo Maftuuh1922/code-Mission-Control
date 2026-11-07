@@ -246,6 +246,12 @@ function renderRoster() {
     `
   }
   for (const [, child] of existing) child.remove()
+
+  if (window.__mcStage) {
+    window.__mcStage.sync(state.agents)
+  } else if (window.__mcDeckReady) {
+    window.__mcDeckReady.then((stage) => { if (stage) stage.sync(state.agents) })
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -407,6 +413,9 @@ function showBark(agent, text) {
     setTimeout(() => el.remove(), 320)
   }, BARK_TTL)
 
+  if (window.__mcStage) window.__mcStage.poke(agent)
+  else if (window.__mcDeckReady) window.__mcDeckReady.then((s) => s && s.poke(agent))
+
   // ticker
   pushTicker(`${label}: ${text}`)
 }
@@ -495,24 +504,14 @@ const ROLE = {
   filesystem: { label: 'FS WATCH', color: '#39d0d8', role: 'Filesystem mirror' },
 }
 
-const AVATARS = {
-  refactorer: '/avatars/refactorer.png',
-  tester: '/avatars/tester.png',
-  scribe: '/avatars/scribe.png',
-  reviewer: '/avatars/reviewer.png',
-  coordinator: '/avatars/reviewer.png',
-  filesystem: '/avatars/tester.png',
-}
-
 function agentColor(id) {
   if (!id) return '#565e6e'
   return state.agents.get(id)?.color || ROLE[id]?.color || '#8b949e'
 }
 
 function avatarHtml(a) {
-  const src = a && AVATARS[a.id]
-  if (!src) return '<span class="ava-ini">' + esc(initials(a?.label)) + '</span>'
-  return '<img src="' + src + '" alt="" width="32" height="32" loading="eager" class="ava-img">'
+  // 3D mascots live in the deck; cards keep a flat token so they still read at a glance
+  return '<span class="ava-ini">' + esc(initials(a?.label)) + '</span>'
 }
 
 function initials(label) {
