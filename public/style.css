@@ -444,17 +444,20 @@ body::after {
   margin-bottom: 6px;
 }
 .agent-ava {
-  width: 32px; height: 32px;
-  border-radius: 8px;
+  width: 40px; height: 40px;
+  border-radius: 10px;
   position: relative;
-  overflow: hidden;
+  overflow: visible;
   flex: none;
-  background: var(--agent-c, var(--amber));
-  display: grid;
-  place-items: center;
-  font-size: 10px;
-  font-weight: 700;
-  color: var(--bg);
+  background: transparent;
+}
+.ava3d {
+  width: 44px; height: 44px;
+  margin: -2px;
+  border-radius: 10px;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--agent-c, var(--amber)) 12%, var(--bg-raise));
+  border: 1px solid color-mix(in srgb, var(--agent-c, var(--amber)) 40%, var(--line));
 }
 .bark-ava {
   width: 32px; height: 32px;
@@ -582,15 +585,20 @@ body::after {
   to { opacity: 0; transform: translateY(-8px) scale(0.96); }
 }
 .bark-ava {
-  width: 32px; height: 32px;
-  border-radius: 8px;
+  width: 36px; height: 36px;
+  border-radius: 10px;
   position: relative;
-  overflow: hidden;
-  display: grid; place-items: center;
-  font-size: 11px; font-weight: 700;
-  color: var(--bg);
-  background: var(--agent-c, var(--amber));
+  overflow: visible;
   flex: none;
+  background: transparent;
+}
+.bark-ava .ava3d {
+  width: 40px; height: 40px;
+  margin: -2px;
+  border-radius: 10px;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--agent-c, var(--amber)) 12%, var(--bg-raise));
+  border: 1px solid color-mix(in srgb, var(--agent-c, var(--amber)) 40%, var(--line));
 }
 .bark-body { min-width: 0; }
 .bark-name {

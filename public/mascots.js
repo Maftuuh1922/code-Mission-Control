@@ -235,4 +235,151 @@ class MascotStage {
   }
 }
 
+/**
+ * CardAvatar: one shared WebGL renderer, each agent card gets a 44px
+ * scissor-viewport of its own bobbing mascot. No stickers, no photos.
+ */
+class CardAvatars {
+  constructor() {
+    this.items = new Map() // id -> {host, mood, phase, color, pokeT}
+    this.spawnT = performance.now() / 1000
+    this.pointer = { x: 0, y: 0 }
+    this.canvas = document.createElement('canvas')
+    this.canvas.style.position = 'fixed'
+    this.canvas.style.left = '0'
+    this.canvas.style.top = '0'
+    this.canvas.style.width = '100vw'
+    this.canvas.style.height = '100vh'
+    this.canvas.style.pointerEvents = 'none'
+    this.canvas.style.zIndex = '5'
+    this.canvas.width = Math.floor(window.innerWidth * Math.min(devicePixelRatio, 2))
+    this.canvas.height = Math.floor(window.innerHeight * Math.min(devicePixelRatio, 2))
+    document.body.appendChild(this.canvas)
+
+    this.renderer = new THREE.WebGLRenderer({ canvas: this.canvas, antialias: true, alpha: true })
+    this.renderer.setPixelRatio(Math.min(devicePixelRatio, 2))
+    this.renderer.setSize(window.innerWidth, window.innerHeight, false)
+    this.renderer.setScissorTest(true)
+
+    this.scene = new THREE.Scene()
+    this.camera = new THREE.PerspectiveCamera(35, 1, 0.1, 20)
+    this.camera.position.set(0, 0.1, 4.4)
+
+    const key = new THREE.DirectionalLight(0xffffff, 2.4)
+    key.position.set(2, 3, 4)
+    const fill = new THREE.DirectionalLight(0xffffff, 0.7)
+    fill.position.set(-3, -1, 2)
+    this.scene.add(key, fill, new THREE.AmbientLight(0xffffff, 0.4))
+
+    window.addEventListener('resize', () => this.resize())
+    window.addEventListener('pointermove', (e) => {
+      this.pointer.x = (e.clientX / window.innerWidth) * 2 - 1
+      this.pointer.y = -((e.clientY / window.innerHeight) * 2 - 1)
+    })
+    this.clock = new THREE.Clock()
+    this.renderer.setAnimationLoop(() => this.loop())
+  }
+
+  resize() {
+    this.canvas.width = Math.floor(window.innerWidth * Math.min(devicePixelRatio, 2))
+    this.canvas.height = Math.floor(window.innerHeight * Math.min(devicePixelRatio, 2))
+    this.renderer.setSize(window.innerWidth, window.innerHeight, false)
+  }
+
+  attach(host, id, color) {
+    if (!host || this.items.has(id)) return
+    const mood = moodFor(id)
+    const group = new THREE.Group()
+    const body = makeBody(mood.color, mood.spike)
+    const eyeL = makeEye(-1)
+    const eyeR = makeEye(1)
+    eyeL.position.set(-0.28, 0.08, 0.78)
+    eyeR.position.set(0.28, 0.08, 0.78)
+    group.add(body, eyeL, eyeR, makeBrow(-1, mood.brow), makeBrow(1, mood.brow))
+    this.scene.add(group)
+    this.items.set(id, {
+      host, id, group, body, eyeL, eyeR,
+      mood, phase: Math.random() * Math.PI * 2,
+      pokeT: 0, born: this.clock.getElapsedTime(),
+    })
+  }
+
+  detach(id) {
+    const m = this.items.get(id)
+    if (!m) return
+    this.scene.remove(m.group)
+    this.items.delete(id)
+  }
+
+  poke(id) {
+    const m = this.items.get(id)
+    if (m) m.pokeT = this.clock.getElapsedTime()
+  }
+
+  loop() {
+    const t = this.clock.getElapsedTime()
+    const dpr = Math.min(devicePixelRatio, 2)
+    this.renderer.clear()
+    for (const m of this.items.values()) {
+      const r = m.host.getBoundingClientRect()
+      if (r.width < 4 || r.bottom < 0 || r.top > window.innerHeight) continue
+      // idle
+      const bob = Math.sin(t * 2.4 + m.phase) * 0.12
+      m.group.position.set(0, bob, 0)
+      const squish = 1 + Math.sin(t * 2.4 + m.phase) * 0.05
+      m.body.scale.set(1 / Math.sqrt(squish), squish, 1 / Math.sqrt(squish))
+      m.group.rotation.y = Math.sin(t * 0.7 + m.phase) * 0.35
+      // eyes follow cursor near the card
+      const px = this.pointer.x * 0.12
+      const py = this.pointer.y * 0.1
+      for (const eye of [m.eyeL, m.eyeR]) {
+        eye.userData.pupil.position.x = THREE.MathUtils.clamp(px, -0.14, 0.14)
+        eye.userData.pupil.position.y = THREE.MathUtils.clamp(py, -0.12, 0.12)
+      }
+      if (m.pokeT) {
+        const dt = t - m.pokeT
+        if (dt < 0.5) {
+          m.group.position.y += Math.sin(dt * Math.PI) * 0.5
+          m.group.rotation.z = Math.sin(dt * 18) * 0.2
+        } else m.group.rotation.z = 0
+      }
+      const age = t - m.born
+      m.group.scale.setScalar(age < 0.4 ? 0.4 + (age / 0.4) * 0.6 : 1)
+
+      // camera per-card
+      this.camera.aspect = r.width / r.height
+      this.camera.updateProjectionMatrix()
+      const x = (r.left + r.width / 2) * dpr
+      const y = (window.innerHeight - r.bottom) * dpr
+      this.renderer.setViewport(x, y, r.width * dpr, r.height * dpr)
+      this.renderer.setScissor(x, y, r.width * dpr, r.height * dpr)
+      this.renderer.render(this.scene, this.camera)
+    }
+  }
+}
+
+let _cardAvatars = null
+function getCardAvatars() {
+  if (!_cardAvatars && typeof THREE !== 'undefined') {
+    try {
+      _cardAvatars = new CardAvatars()
+    } catch (e) {
+      console.warn('card avatars off', e)
+    }
+  }
+  return _cardAvatars
+}
+window.MascotCards = { attach, detach, poke, get: getCardAvatars }
+function attach(host, id, color) {
+  const s = getCardAvatars()
+  if (s) s.attach(host, id, color)
+}
+function detach(id) {
+  if (_cardAvatars) _cardAvatars.detach(id)
+}
+function poke(id) {
+  if (_cardAvatars) _cardAvatars.poke(id)
+}
+Object.assign(window.MascotCards, { attach, detach, poke })
+
 window.MascotStage = MascotStage

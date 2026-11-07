@@ -229,7 +229,7 @@ function renderRoster() {
     card.style.setProperty('--agent-c', a.color)
     card.innerHTML = `
       <div class="agent-hd">
-        <div class="agent-ava">${avatarHtml(a)}</div>
+        <div class="agent-ava"><div class="ava3d" data-ava="${esc(a.id)}"></div></div>
         <div>
           <div class="agent-name">${esc(a.label)}</div>
           <div class="agent-role">${esc(a.role)}</div>
@@ -244,8 +244,11 @@ function renderRoster() {
       </div>
       ${a.lastBark ? `<div class="agent-bark-line">${esc(a.lastBark.text)}</div>` : ''}
     `
+    const host = card.querySelector('.ava3d')
+    if (host && window.MascotCards) window.MascotCards.attach(host, a.id, a.color)
   }
   for (const [, child] of existing) child.remove()
+  if (window.MascotCards) for (const id of existing.keys()) window.MascotCards.detach(id)
 
   if (window.__mcStage) {
     window.__mcStage.sync(state.agents)
@@ -415,6 +418,7 @@ function showBark(agent, text) {
 
   if (window.__mcStage) window.__mcStage.poke(agent)
   else if (window.__mcDeckReady) window.__mcDeckReady.then((s) => s && s.poke(agent))
+  if (window.MascotCards) window.MascotCards.poke(agent)
 
   // ticker
   pushTicker(`${label}: ${text}`)
