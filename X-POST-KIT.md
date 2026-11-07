@@ -142,5 +142,5 @@ node server.js --port 4826 --replay events/real-run-clean.jsonl
 - [ ] Jelaskan: masalah, proses, hasil, pelajaran
 - [ ] Tidak ada email akun AutoClaw di post
 - [ ] Data klien/sensitif tidak ikut (demo-repo fiktif — aman)
-- [ ] Product/demo URL siap (repo GitHub / video)
+- [ ] Product/demo URL: https://github.com/Maftuuh1922/code-Mission-Control
 - [ ] Screenshot follow + URL post + URL profil X
