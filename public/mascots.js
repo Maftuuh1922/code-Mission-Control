@@ -2,7 +2,7 @@
  * Mission mascots — Three.js blobs with googly eyes.
  * Each agent id gets a color + mood. No stickers, no photos.
  */
-import * as THREE from './vendor/three.module.js'
+// uses global THREE from vendor/three.min.js
 
 const MOODS = {
   refactorer: { color: 0xffb454, brow: -0.55, pupil: 0.16, spike: 0.42, name: 'REFACTOR' },
@@ -72,7 +72,7 @@ function makeBrow(side, angle) {
   return brow
 }
 
-export class MascotStage {
+class MascotStage {
   constructor(container) {
     this.container = container
     this.mascots = new Map() // id -> { group, eyeL, eyeR, body, mood, target }
@@ -234,3 +234,5 @@ export class MascotStage {
     this.renderer.dispose()
   }
 }
+
+window.MascotStage = MascotStage

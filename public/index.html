@@ -1093,22 +1093,25 @@ node cli.js edit refactorer src/utils.js</code></pre>
   </div>
 
 </div>
-<script src="./app.js" type="module"></script>
-<script type="module">
-  // warm mascots as soon as possible; app.js will sync agents into it
+<script src="./vendor/three.min.js"></script>
+<script src="./mascots.js"></script>
+<script src="./app.js"></script>
+<script>
+  // 3D deck — works from file:// and http://
   window.__mcDeckReady = new Promise((resolve) => {
-    import('/mascots.js').then(({ MascotStage }) => {
-      const el = document.getElementById('deck')
-      if (!el) return resolve(null)
-      try {
-        window.__mcStage = new MascotStage(el)
-        resolve(window.__mcStage)
-      } catch (err) {
-        console.warn('WebGL unavailable, falling back to initials', err)
-        el.classList.add('deck-fallback')
-        resolve(null)
-      }
-    }).catch(() => resolve(null))
+    const el = document.getElementById('deck')
+    if (!el || typeof MascotStage === 'undefined') {
+      if (el) el.classList.add('deck-fallback')
+      return resolve(null)
+    }
+    try {
+      window.__mcStage = new MascotStage(el)
+      resolve(window.__mcStage)
+    } catch (err) {
+      console.warn('WebGL unavailable, falling back to initials', err)
+      el.classList.add('deck-fallback')
+      resolve(null)
+    }
   })
 </script>
 </body>
