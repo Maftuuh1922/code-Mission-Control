@@ -9,7 +9,7 @@ Buka form resmi (link dari @AutoClawAIer / halaman kampanye), lalu isi:
 | X profile URL | `https://x.com/USERNAME` |
 | X post URL | URL post utama (thread 1/4) |
 | Track | **Open Creation** |
-| Product / demo URL | URL repo GitHub `agent-mission-control` (upload dulu) atau link video |
+| Product / demo URL | `https://github.com/Maftuuh1922/code-Mission-Control` |
 
 ## Sebelum klik submit
 
