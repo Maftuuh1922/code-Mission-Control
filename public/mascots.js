@@ -2,7 +2,7 @@
  * Mission mascots — Three.js blobs with googly eyes.
  * Each agent id gets a color + mood. No stickers, no photos.
  */
-import * as THREE from '/vendor/three.module.js'
+import * as THREE from './vendor/three.module.js'
 
 const MOODS = {
   refactorer: { color: 0xffb454, brow: -0.55, pupil: 0.16, spike: 0.42, name: 'REFACTOR' },

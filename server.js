@@ -11,6 +11,7 @@
  *   --replay path/to/events.jsonl
  */
 import http from 'node:http'
+import zlib from 'node:zlib'
 import fs from 'node:fs'
 import fsp from 'node:fs/promises'
 import path from 'node:path'
@@ -364,6 +365,7 @@ async function startReplay(file) {
 const MIME = {
   '.html': 'text/html; charset=utf-8',
   '.js': 'text/javascript; charset=utf-8',
+  '.mjs': 'text/javascript; charset=utf-8',
   '.css': 'text/css; charset=utf-8',
   '.svg': 'image/svg+xml',
   '.png': 'image/png',
@@ -448,7 +450,7 @@ async function handleEventPost(req, res) {
   sendJson(res, 200, { ok: true, saved: saved.length, id: saved.at(-1)?.id })
 }
 
-function serveStatic(res, urlPath) {
+function serveStatic(res, urlPath, acceptGzip = true) {
   let rel = urlPath === '/' ? '/index.html' : urlPath
   rel = rel.split('?')[0]
   const abs = path.join(PUBLIC_DIR, path.normalize(rel).replace(/^(\.\.[/\\])+/, ''))
@@ -461,8 +463,22 @@ function serveStatic(res, urlPath) {
       res.writeHead(404, { 'Content-Type': 'text/plain' })
       return res.end('not found')
     }
+    const type = MIME[path.extname(abs)] || 'application/octet-stream'
+    const gzippable = /javascript|css|html|json/.test(type) && acceptGzip
+    if (gzippable && buf.length > 1024) {
+      const gz = zlib.gzipSync(buf)
+      res.writeHead(200, {
+        'Content-Type': type,
+        'Content-Encoding': 'gzip',
+        'Content-Length': gz.length,
+        'Cache-Control': 'no-store',
+        Vary: 'Accept-Encoding',
+      })
+      return res.end(gz)
+    }
     res.writeHead(200, {
-      'Content-Type': MIME[path.extname(abs)] || 'application/octet-stream',
+      'Content-Type': type,
+      'Content-Length': buf.length,
       'Cache-Control': 'no-store',
     })
     res.end(buf)

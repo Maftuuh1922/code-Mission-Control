@@ -45,7 +45,7 @@ const HOT_MS = 2500
 // SSE
 // ---------------------------------------------------------------------------
 function connect() {
-  const es = new EventSource('/api/stream')
+  const es = new EventSource('./api/stream')
   es.onopen = () => {
     els.led.dataset.on = 'true'
     els.feedLabel.textContent = 'LINK LIVE'
