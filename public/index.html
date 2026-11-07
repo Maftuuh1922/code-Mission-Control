@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Agent Mission Control</title>
+<meta name="description" content="Live war-room for multiple AutoClaw agents working one codebase.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='6' fill='%230a0c10'/><circle cx='16' cy='16' r='6' fill='none' stroke='%23ffb454' stroke-width='2'/><circle cx='16' cy='16' r='2' fill='%23ffb454'/><path d='M16 2v6M16 24v6M2 16h6M24 16h6' stroke='%23ffb454' stroke-width='2'/></svg>">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<div id="app" data-state="empty">
+
+  <!-- ===== HEADER ===== -->
+  <header class="hdr">
+    <div class="hdr-left">
+      <div class="logo" aria-hidden="true">
+        <span class="logo-ring"></span>
+        <span class="logo-dot"></span>
+      </div>
+      <div class="brand">
+        <h1>AGENT MISSION CONTROL</h1>
+        <p class="brand-sub">LIVE · multi-agent codebase operations</p>
+      </div>
+    </div>
+
+    <nav class="hdr-stats" aria-label="mission statistics">
+      <div class="stat">
+        <span class="stat-k">T+</span>
+        <span class="stat-v" id="st-clock">00:00:00</span>
+      </div>
+      <div class="stat">
+        <span class="stat-k">AGENTS</span>
+        <span class="stat-v" id="st-agents">0<i>/0</i></span>
+      </div>
+      <div class="stat">
+        <span class="stat-k">EDITS</span>
+        <span class="stat-v" id="st-edits">0</span>
+      </div>
+      <div class="stat">
+        <span class="stat-k">FILES</span>
+        <span class="stat-v" id="st-files">0</span>
+      </div>
+      <div class="stat">
+        <span class="stat-k">CONFLICTS</span>
+        <span class="stat-v" id="st-conflicts">0</span>
+      </div>
+      <div class="stat">
+        <span class="stat-k">MERGES</span>
+        <span class="stat-v" id="st-merges">0</span>
+      </div>
+    </nav>
+
+    <div class="hdr-right">
+      <div class="feed-led" id="feed-led" title="event stream">
+        <span class="led" data-on="false"></span>
+        <span id="feed-label">LINK IDLE</span>
+      </div>
+      <button class="btn-ghost" id="btn-help" type="button" title="how to connect agents">CONNECT</button>
+    </div>
+  </header>
+
+  <!-- ===== BARK TOAST ===== -->
+  <div class="bark-stage" id="bark-stage" aria-live="polite"></div>
+
+  <!-- ===== CONFLICT BANNER ===== -->
+  <div class="conflict-banner" id="conflict-banner" role="alert" hidden>
+    <span class="conflict-icon" aria-hidden="true">
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 3 2 21h20L12 3z"/><path d="M12 10v5"/><circle cx="12" cy="18" r=".5" fill="currentColor"/></svg>
+    </span>
+    <span id="conflict-text">FILE CONFLICT</span>
+  </div>
+
+  <!-- ===== MAIN GRID ===== -->
+  <main class="grid">
+
+    <!-- FILE TREE -->
+    <section class="panel panel-files" aria-labelledby="files-h">
+      <div class="panel-hd">
+        <h2 id="files-h">FILE TREE</h2>
+        <span class="panel-meta" id="files-meta">0 paths</span>
+      </div>
+      <div class="panel-bd" id="file-tree">
+        <div class="empty-hint">
+          <p class="empty-title">NO FILE ACTIVITY</p>
+          <p>Agents report <code>file_edit</code> events.<br>Heat appears as the codebase is touched.</p>
+        </div>
+      </div>
+      <div class="panel-ft">
+        <div class="legend">
+          <span class="lg"><i style="--c:var(--amber)"></i>refactor</span>
+          <span class="lg"><i style="--c:var(--green)"></i>test</span>
+          <span class="lg"><i style="--c:var(--blue)"></i>docs</span>
+          <span class="lg"><i style="--c:var(--pink)"></i>review</span>
+          <span class="lg"><i style="--c:var(--purple)"></i>coord</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- CENTER: TREEMAP + FEED -->
+    <section class="center">
+      <div class="panel panel-map">
+        <div class="panel-hd">
+          <h2>CODEBASE HEAT</h2>
+          <span class="panel-meta">area = edits · color = last agent</span>
+        </div>
+        <div class="panel-bd map-bd">
+          <canvas id="treemap" aria-label="treemap of file edit activity"></canvas>
+          <div class="empty-hint empty-over" id="map-empty">
+            <p class="empty-title">AWAITING TELEMETRY</p>
+            <p>The treemap draws itself the moment<br>the first <code>file_edit</code> lands.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel panel-feed">
+        <div class="panel-hd">
+          <h2>EVENT STREAM</h2>
+          <span class="panel-meta" id="feed-meta">0 events</span>
+        </div>
+        <ol class="feed" id="feed" aria-live="polite">
+          <li class="feed-empty">— channel open, waiting —</li>
+        </ol>
+      </div>
+    </section>
+
+    <!-- AGENT ROSTER -->
+    <section class="panel panel-agents" aria-labelledby="agents-h">
+      <div class="panel-hd">
+        <h2 id="agents-h">ROSTER</h2>
+        <span class="panel-meta" id="agents-meta">standby</span>
+      </div>
+      <div class="panel-bd" id="roster">
+        <div class="empty-hint">
+          <p class="empty-title">NO AGENTS ON DECK</p>
+          <p>Send <code>agent_start</code> to put an operator on the board.</p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- ===== FOOTER TICKER ===== -->
+  <footer class="ticker-wrap">
+    <div class="ticker" id="ticker">
+      <span class="ticker-item">SYSTEM NOMINAL</span>
+      <span class="ticker-item">MISSION CONTROL v0.1</span>
+      <span class="ticker-item">POST /api/event TO JOIN</span>
+    </div>
+  </footer>
+
+  <!-- ===== CONNECT MODAL ===== -->
+  <div class="modal" id="modal" hidden>
+    <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="modal-h">
+      <div class="modal-hd">
+        <h3 id="modal-h">Connect agents</h3>
+        <button class="btn-ghost" id="modal-x" type="button" aria-label="close">ESC</button>
+      </div>
+      <p class="modal-p">Point any AutoClaw agent (or a <code>curl</code> in a loop) at the event API. Every event is persisted to <code>events/*.jsonl</code>.</p>
+      <pre class="code"><code>curl -X POST http://localhost:4826/api/event \
+  -H 'content-type: application/json' \
+  -d '{
+    "type": "agent_start",
+    "agent": "refactorer",
+    "task": "flatten src/utils.js"
+  }'</code></pre>
+      <p class="modal-p">Event types:</p>
+      <ul class="evt-list">
+        <li><code>agent_start</code> <span>— put agent on the roster</span></li>
+        <li><code>file_edit</code> <span>— agent touched a path</span></li>
+        <li><code>thought</code> <span>— internal monologue line</span></li>
+        <li><code>bark</code> <span>— personality line for the screen</span></li>
+        <li><code>test_run</code> <span>— test suite status</span></li>
+        <li><code>conflict</code> <span>— two agents, one file</span></li>
+        <li><code>merge</code> <span>— work landed</span></li>
+        <li><code>agent_done</code> <span>— operator signed off</span></li>
+      </ul>
+      <p class="modal-p">Or use the helper:</p>
+      <pre class="code"><code>node cli.js bark refactorer "this function is 400 lines. I'm not even mad."
+node cli.js edit refactorer src/utils.js</code></pre>
+    </div>
+  </div>
+
+</div>
+<script src="/app.js" type="module"></script>
+</body>
+</html>
