@@ -95,6 +95,49 @@ function pushEvent(evt) {
   return e
 }
 
+function normalizeIncoming(evt) {
+  if (!evt || typeof evt !== 'object') return null
+  // Already Mission Control shape
+  if (evt.type && typeof evt.type === 'string' && !evt.hook_event_name) {
+    return evt
+  }
+  // Hermes outbound webhook / shell-hook payload
+  const name = evt.hook_event_name
+  if (!name) return null
+  const extra = evt.extra || {}
+  const tool = evt.tool_name || extra.tool_name
+  const input = evt.tool_input || extra.tool_input || {}
+  const file = input.file_path || input.path || input.file || extra.file || extra.file_path
+  const agentHint = extra.profile || extra.agent || extra.child_role || 'hermes'
+  const text = extra.user_message || extra.message || extra.response || extra.reason || ''
+  switch (name) {
+    case 'on_session_start':
+      return { type: 'agent_start', agent: agentHint, task: text || 'session started' }
+    case 'on_session_end':
+      return { type: 'agent_done', agent: agentHint, text: extra.completed ? 'session complete' : 'session ended' }
+    case 'pre_tool_call':
+    case 'post_tool_call': {
+      if (tool === 'terminal' && input.command) {
+        return { type: 'thought', agent: agentHint, text: `$ ${String(input.command).slice(0, 160)}` }
+      }
+      if (file) {
+        return { type: 'file_edit', agent: agentHint, file, text: `${name} ${tool || ''}`.trim() }
+      }
+      return { type: 'thought', agent: agentHint, text: `${name} ${tool || 'tool'}` }
+    }
+    case 'subagent_start':
+      return { type: 'agent_start', agent: extra.child_role || extra.agent || 'subagent', task: extra.task || extra.prompt || 'subagent' }
+    case 'subagent_stop':
+      return { type: 'agent_done', agent: extra.child_role || extra.agent || 'subagent' }
+    case 'pre_llm_call':
+      return { type: 'thought', agent: agentHint, text: String(extra.user_message || text || 'thinking').slice(0, 180) }
+    case 'post_llm_call':
+      return { type: 'bark', agent: agentHint, text: String(extra.response || text || '…').slice(0, 140) }
+    default:
+      return { type: 'thought', agent: agentHint, text: name }
+  }
+}
+
 function applyEvent(e) {
   switch (e.type) {
     case 'agent_start': {
@@ -440,12 +483,13 @@ async function handleEventPost(req, res) {
   } catch {
     return sendJson(res, 400, { ok: false, error: 'invalid json' })
   }
-  // support single event or {events: [...]}
+  // support single event, {events: [...]}, or Hermes hook payload
   const list = Array.isArray(body.events) ? body.events : [body]
   const saved = []
   for (const evt of list) {
-    if (!evt || typeof evt !== 'object' || !evt.type) continue
-    saved.push(pushEvent(evt))
+    const norm = normalizeIncoming(evt)
+    if (!norm || !norm.type) continue
+    saved.push(pushEvent(norm))
   }
   sendJson(res, 200, { ok: true, saved: saved.length, id: saved.at(-1)?.id })
 }
