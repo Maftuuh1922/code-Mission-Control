@@ -102,6 +102,10 @@ ssh -R 80:localhost:4826 nokey@remotemoe.io
 Send them the URL. They see the war-room. They cannot write events unless
 they also have the shared secret.
 
+## Also works with Hermes, OpenClaw, Claude Code
+
+See `HERMES.md` and `OPENCLAW.md`. Any hook that POSTs JSON lands on the same war-room.
+
 ## Optional: GitHub webhook
 
 Point a repo webhook at:
