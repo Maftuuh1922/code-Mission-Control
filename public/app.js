@@ -427,6 +427,10 @@ let conflictTimer = null
 function showConflict(e) {
   els.conflictText.textContent = `FILE CONFLICT — ${e.file || e.text || 'unknown path'}`
   els.conflictBanner.hidden = false
+  document.body.classList.remove('shake')
+  void document.body.offsetWidth
+  document.body.classList.add('shake')
+  setTimeout(() => document.body.classList.remove('shake'), 400)
   clearTimeout(conflictTimer)
   conflictTimer = setTimeout(() => { els.conflictBanner.hidden = true }, 4000)
 }
@@ -434,13 +438,24 @@ function showConflict(e) {
 // ---------------------------------------------------------------------------
 // stats + clock
 // ---------------------------------------------------------------------------
+function bump(el) {
+  el.classList.remove('bump')
+  // force reflow
+  void el.offsetWidth
+  el.classList.add('bump')
+}
+
 function renderStats() {
   const active = [...state.agents.values()].filter((a) => a.status === 'active').length
   els.agents.innerHTML = `${active}<i>/${state.agents.size}</i>`
-  els.edits.textContent = String(countEdits())
-  els.files.textContent = String(state.files.size)
-  els.conflicts.textContent = String(state.conflicts.length)
-  els.merges.textContent = String(state.merges.length)
+  const edits = String(countEdits())
+  if (els.edits.textContent !== edits) { els.edits.textContent = edits; bump(els.edits) }
+  const nfiles = String(state.files.size)
+  if (els.files.textContent !== nfiles) { els.files.textContent = nfiles; bump(els.files) }
+  const nconf = String(state.conflicts.length)
+  if (els.conflicts.textContent !== nconf) { els.conflicts.textContent = nconf; bump(els.conflicts) }
+  const nmerge = String(state.merges.length)
+  if (els.merges.textContent !== nmerge) { els.merges.textContent = nmerge; bump(els.merges) }
   els.conflicts.classList.toggle('stat-danger', state.conflicts.length > 0)
 }
 
@@ -481,12 +496,12 @@ const ROLE = {
 }
 
 const AVATARS = {
-  refactorer: '/avatars/refactorer.jpg',
-  tester: '/avatars/tester.jpg',
-  scribe: '/avatars/scribe.jpg',
-  reviewer: '/avatars/reviewer.jpg',
-  coordinator: '/avatars/reviewer.jpg',
-  filesystem: '/avatars/tester.jpg',
+  refactorer: '/avatars/refactorer.png',
+  tester: '/avatars/tester.png',
+  scribe: '/avatars/scribe.png',
+  reviewer: '/avatars/reviewer.png',
+  coordinator: '/avatars/reviewer.png',
+  filesystem: '/avatars/tester.png',
 }
 
 function agentColor(id) {
@@ -497,7 +512,7 @@ function agentColor(id) {
 function avatarHtml(a) {
   const src = a && AVATARS[a.id]
   if (!src) return '<span class="ava-ini">' + esc(initials(a?.label)) + '</span>'
-  return '<img src="' + src + '" alt="" width="32" height="32" loading="eager">'
+  return '<img src="' + src + '" alt="" width="32" height="32" loading="eager" class="ava-img">'
 }
 
 function initials(label) {
