@@ -101,40 +101,59 @@ function normalizeIncoming(evt) {
   if (evt.type && typeof evt.type === 'string' && !evt.hook_event_name) {
     return evt
   }
-  // Hermes outbound webhook / shell-hook payload
-  const name = evt.hook_event_name
+  const name = evt.hook_event_name || evt.event || evt.HookEventName
   if (!name) return null
   const extra = evt.extra || {}
-  const tool = evt.tool_name || extra.tool_name
-  const input = evt.tool_input || extra.tool_input || {}
-  const file = input.file_path || input.path || input.file || extra.file || extra.file_path
-  const agentHint = extra.profile || extra.agent || extra.child_role || 'hermes'
-  const text = extra.user_message || extra.message || extra.response || extra.reason || ''
-  switch (name) {
+  const tool = evt.tool_name || evt.toolName || extra.tool_name || extra.toolName || ''
+  const input = evt.tool_input || evt.toolInput || extra.tool_input || extra.toolInput || {}
+  const file = input.file_path || input.filePath || input.path || input.file || extra.file || extra.file_path || extra.filePath
+  const command = input.command || input.Command || ''
+  // Claude Code / OpenClaw / generic agent-hook names
+  const NAME = String(name)
+  const agentHint = evt.agent
+    || extra.profile
+    || extra.agent
+    || extra.child_role
+    || evt.session_id
+    || evt.sessionId
+    || 'openclaw'
+  const text = extra.user_message || extra.message || extra.response || extra.reason || evt.message || ''
+
+  // Hermes-style first
+  switch (NAME) {
     case 'on_session_start':
+    case 'SessionStart':
       return { type: 'agent_start', agent: agentHint, task: text || 'session started' }
     case 'on_session_end':
+    case 'SessionEnd':
+    case 'Stop':
       return { type: 'agent_done', agent: agentHint, text: extra.completed ? 'session complete' : 'session ended' }
-    case 'pre_tool_call':
-    case 'post_tool_call': {
-      if (tool === 'terminal' && input.command) {
-        return { type: 'thought', agent: agentHint, text: `$ ${String(input.command).slice(0, 160)}` }
-      }
-      if (file) {
-        return { type: 'file_edit', agent: agentHint, file, text: `${name} ${tool || ''}`.trim() }
-      }
-      return { type: 'thought', agent: agentHint, text: `${name} ${tool || 'tool'}` }
-    }
     case 'subagent_start':
+    case 'SubagentStart':
       return { type: 'agent_start', agent: extra.child_role || extra.agent || 'subagent', task: extra.task || extra.prompt || 'subagent' }
     case 'subagent_stop':
+    case 'SubagentStop':
       return { type: 'agent_done', agent: extra.child_role || extra.agent || 'subagent' }
     case 'pre_llm_call':
+    case 'UserPromptSubmit':
       return { type: 'thought', agent: agentHint, text: String(extra.user_message || text || 'thinking').slice(0, 180) }
     case 'post_llm_call':
       return { type: 'bark', agent: agentHint, text: String(extra.response || text || '…').slice(0, 140) }
+    case 'pre_tool_call':
+    case 'PreToolUse':
+    case 'post_tool_call':
+    case 'PostToolUse': {
+      if (command) {
+        return { type: 'thought', agent: agentHint, text: `$ ${String(command).slice(0, 160)}` }
+      }
+      if (file) {
+        return { type: 'file_edit', agent: agentHint, file, text: `${NAME} ${tool}`.trim() }
+      }
+      return { type: 'thought', agent: agentHint, text: `${NAME} ${tool || 'tool'}` }
+    }
     default:
-      return { type: 'thought', agent: agentHint, text: name }
+      // Unknown hook: still show something so the deck is alive
+      return { type: 'thought', agent: agentHint, text: String(NAME).slice(0, 120) }
   }
 }
 
